@@ -29,7 +29,7 @@ public class Cart {
     @Column(name = "date_Created", nullable = false)
     private LocalDate dateCreated;
 
-    @OneToMany(mappedBy = "cart",cascade = CascadeType.MERGE,fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "cart",cascade = CascadeType.MERGE,orphanRemoval = true,fetch = FetchType.LAZY)
     private Set<CartItem> cartItems = new LinkedHashSet<>();
 
     @PrePersist
@@ -58,6 +58,18 @@ public class Cart {
         }
         return cartItem;
 
+    }
+    public void removeItem (Long productId){
+        var cartItem=getItem(productId);
+        if(cartItem!=null){
+            cartItems.remove(cartItem);
+            cartItem.setCart(null);
+
+        }
+
+    }
+    public void clear(){
+        cartItems.clear();
     }
 
 }
