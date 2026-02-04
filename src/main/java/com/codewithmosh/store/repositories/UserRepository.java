@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = {"profile"})
     List<User> findAll(Sort sort);
 
+    @EntityGraph(attributePaths = {"profile"})
+    User findByEmail(String email);
 }

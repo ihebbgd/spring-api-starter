@@ -11,15 +11,24 @@ import com.codewithmosh.store.mappres.UserMapper;
 import com.codewithmosh.store.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import java.util.Collections;
 import java.util.Set;
 
 @Service
 @AllArgsConstructor
-public class UserService {
+public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+
+
     public Iterable<UserDto> getAllUsers(String sortBy){
         Set<String> allowedSorts = Set.of("id","name", "email");
         if(!allowedSorts.contains(sortBy)){
@@ -41,6 +50,7 @@ public class UserService {
         if(userRepository.existsByEmail(request.getEmail())){
             throw new EmailAlreadyExists();
         }
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
         return userMapper.userToUserDto(user);
     }
@@ -66,11 +76,20 @@ public class UserService {
         if(user==null){
             throw new UserNotFoundException();
         }
-        if(!user.getPassword().equals(request.getOldPassword())){
+        if(!passwordEncoder.matches(request.getOldPassword(), user.getPassword())){
             throw new FalsePassword();
         }
         userMapper.updateUserPassword(request, user);
         userRepository.save(user);
+    }
+    @Override
+    public UserDetails loadUserByUsername(String email)  {
+
+        var user= userRepository.findByEmail(email);
+        if(user==null){
+            throw new UserNotFoundException();
+        }
+        return new User(user.getEmail(), user.getPassword(), Collections.emptyList());
     }
 
 
