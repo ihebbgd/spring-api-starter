@@ -1,7 +1,6 @@
 package com.codewithmosh.store.controllers;
 
 import com.codewithmosh.store.exceptions.*;
-import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -45,6 +44,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, String>> handleUnauthorizedException() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+    }
+    @ExceptionHandler(CartIsEmptyException.class)
+    public ResponseEntity<Map<String,String>> handleCartIsEmptyException() {
+        return  ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error","Cart is empty"));
     }
 
 }

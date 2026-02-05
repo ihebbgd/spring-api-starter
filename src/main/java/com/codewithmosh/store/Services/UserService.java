@@ -4,6 +4,7 @@ import com.codewithmosh.store.dtos.ChangePasswordRequest;
 import com.codewithmosh.store.dtos.RegisterUserRequest;
 import com.codewithmosh.store.dtos.UpdateUserRequest;
 import com.codewithmosh.store.dtos.UserDto;
+import com.codewithmosh.store.entities.Role;
 import com.codewithmosh.store.exceptions.EmailAlreadyExists;
 import com.codewithmosh.store.exceptions.FalsePassword;
 import com.codewithmosh.store.exceptions.UserNotFoundException;
@@ -51,6 +52,7 @@ public class UserService implements UserDetailsService {
             throw new EmailAlreadyExists();
         }
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.USER);
         userRepository.save(user);
         return userMapper.userToUserDto(user);
     }
