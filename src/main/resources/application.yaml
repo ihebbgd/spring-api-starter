@@ -11,3 +11,8 @@ spring:
     secret: ${JWT_SECRET}
     accessTokenExpiration: 7200 #120 min
     refreshTokenExpiration: 604800 #7DAYS
+
+stripe:
+  secretKey: ${STRIPE_SECRET_KEY}
+  webhookSecret: ${STRIPE_WEBHOOK_SECRET_KEY}
+websiteUrl : http://localhost:4242

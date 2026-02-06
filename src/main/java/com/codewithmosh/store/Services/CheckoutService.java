@@ -7,24 +7,35 @@ import com.codewithmosh.store.entities.OrderItem;
 import com.codewithmosh.store.entities.OrderStatus;
 import com.codewithmosh.store.exceptions.CartIsEmptyException;
 import com.codewithmosh.store.exceptions.CartNotFoundException;
+import com.codewithmosh.store.exceptions.PaymentException;
 import com.codewithmosh.store.exceptions.UserNotFoundException;
 import com.codewithmosh.store.repositories.CartRepository;
 import com.codewithmosh.store.repositories.OrderRepository;
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.stripe.exception.StripeException;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.ErrorResponse;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class CheckoutService {
     private final CartRepository cartRepository;
     private final AuthService authService;
     private final OrderRepository orderRepository;
     private final CartService cartService;
+    private final PaymentGateway paymentGateway;
 
+
+
+    @Transactional
     public CheckoutResponse checkout(CheckoutRequest checkoutRequest) {
         var cart=cartRepository.getCartWithItems(checkoutRequest.getCartId()).orElse(null);
         if(cart==null){
@@ -33,25 +44,24 @@ public class CheckoutService {
         if (cart.getCartItems().isEmpty()){
             throw new CartIsEmptyException();
         }
-        var order= new Order();
-        order.setTotalPrice(cart.getTotalPrice());
-        order.setStatus(OrderStatus.PENDING);
-        order.setCustomer(authService.getCurrentUser());
 
+        var order= new Order(authService.getCurrentUser(),OrderStatus.PENDING,cart.getTotalPrice());
         cart.getCartItems().forEach(item->{
-            var orderItem=new OrderItem();
-            orderItem.setOrder(order);
-            orderItem.setProduct(item.getProduct());
-            orderItem.setQuanity(item.getQuantity());
-            orderItem.setTotalPrice(item.getTotalPrice());
-            orderItem.setUnitPrice(item.getProduct().getPrice());
+            var orderItem=new OrderItem(order,item.getProduct(), item.getQuantity());
             order.getOrderItems().add(orderItem);
         });
         orderRepository.save(order);
 
-        cartService.clearcart(cart.getId());
+       try {
+           //CREATE CHECKOUT SESSION
+           var session=paymentGateway.createCheckoutSession(order);
+           cartService.clearcart(cart.getId());
 
-        return new CheckoutResponse(order.getId());
+           return new CheckoutResponse(order.getId(),session.getCheckoutUrl());
+       }catch (PaymentException e){
+           orderRepository.delete(order);
+           throw e;
+       }
 
 
     }

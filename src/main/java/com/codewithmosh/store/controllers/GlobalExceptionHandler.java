@@ -3,10 +3,11 @@ package com.codewithmosh.store.controllers;
 import com.codewithmosh.store.exceptions.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.HashMap;
 import java.util.Map;
 @RestControllerAdvice
@@ -48,6 +49,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CartIsEmptyException.class)
     public ResponseEntity<Map<String,String>> handleCartIsEmptyException() {
         return  ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error","Cart is empty"));
+    }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String,String>> handleunreadablemessage(){
+        return ResponseEntity.badRequest().body(Map.of("error","Invalid request body"));
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<Map<String,String>> handleOrderNotFoundException(){
+        return  ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","Order not found"));
+    }
+    @ExceptionHandler(CantAccessThisOrderException.class)
+    public ResponseEntity<Map<String, String>> handleException(){
+        return  ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","You don't have access to this order"));
+    }
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<Map<String, String>> handlePaymentException(){
+        return  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error","create checkout session failed"));
     }
 
 }
