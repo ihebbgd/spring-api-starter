@@ -2,14 +2,11 @@ package com.codewithmosh.store.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -31,7 +28,7 @@ public class Order {
 
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
-    private OrderStatus status;
+    private PaymentStatus status;
 
     @Column(name = "created_at",insertable = false,updatable = false)
     private LocalDateTime createdAt;
@@ -43,7 +40,7 @@ public class Order {
     @OneToMany(mappedBy = "order",cascade = {CascadeType.PERSIST,CascadeType.REMOVE})
     private Set<OrderItem> orderItems = new LinkedHashSet<>();
 
-    public Order(User customer,OrderStatus status, BigDecimal totalPrice) {
+    public Order(User customer, PaymentStatus status, BigDecimal totalPrice) {
         this.customer = customer;
         this.status = status;
         this.totalPrice = totalPrice;

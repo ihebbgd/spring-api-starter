@@ -2,19 +2,29 @@ package com.codewithmosh.store.Services;
 
 import com.codewithmosh.store.entities.Order;
 import com.codewithmosh.store.entities.OrderItem;
+import com.codewithmosh.store.entities.PaymentStatus;
 import com.codewithmosh.store.exceptions.PaymentException;
+import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Event;
+import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Optional;
+
 @Service
 public class StripePaymentGateway implements  PaymentGateway {
 
     @Value("${websiteUrl}")
     private String websiteUrl;
+    @Value("${stripe.webhookSecret}")
+    private String stripeWebhookSecret;
 
     @Override
     public CheckoutSession createCheckoutSession(Order order) {
@@ -23,7 +33,7 @@ public class StripePaymentGateway implements  PaymentGateway {
                     .setMode(SessionCreateParams.Mode.PAYMENT)
                     .setSuccessUrl(websiteUrl + "/checkout-success?orderId=" + order.getId())
                     .setCancelUrl(websiteUrl + "/checkout-cancel")
-                    .putMetadata("order_id",order.getId().toString());
+                    .putMetadata("order_id", order.getId().toString());
 
             order.getOrderItems().forEach(item -> {
                 var lineItem = CreateLineitem(item);
@@ -31,13 +41,13 @@ public class StripePaymentGateway implements  PaymentGateway {
             });
 
             var session = Session.create(builder.build());
-        return new CheckoutSession(session.getUrl());
-        }
-        catch (StripeException e) {
+            return new CheckoutSession(session.getUrl());
+        } catch (StripeException e) {
             throw new PaymentException();
         }
 
     }
+
 
     private static SessionCreateParams.LineItem CreateLineitem(OrderItem item) {
         return SessionCreateParams.LineItem.builder()
@@ -61,4 +71,39 @@ public class StripePaymentGateway implements  PaymentGateway {
                 .build();
     }
 
-}
+    @Override
+    public Optional<PaymentResult> parseWebhookEvent(WebhookRequest request) {
+        try {
+            var payload = request.getPayload();
+            var signature = request.getHeaders().get("stripe-signature");
+            var event = Webhook.constructEvent(payload, signature, stripeWebhookSecret);
+
+
+             switch (event.getType()) {
+                case "payment_intent.succeeded" -> {
+                    return Optional.of(new PaymentResult(extractOrderIdFromEvent(event), PaymentStatus.PAID));
+                }
+
+                case "payment_intent.payment_failed" -> {
+                    return Optional.of(new PaymentResult(extractOrderIdFromEvent(event), PaymentStatus.FAILED));
+                }
+                default -> {
+                    return Optional.empty();
+                }
+            }
+        } catch (SignatureVerificationException e) {
+            throw new PaymentException("Invalid webhook signature");
+        }
+    }
+
+
+        private Long extractOrderIdFromEvent (Event event){
+            var stripeObject = event.getDataObjectDeserializer().getObject().orElseThrow(() -> new PaymentException("could not deseialize Stripe event check sdk and api version"));
+            var paymentIntent = (PaymentIntent) stripeObject;
+            var orderId = paymentIntent.getMetadata().get("order_id");
+            return Long.valueOf(orderId);
+
+        }
+
+    }
+
